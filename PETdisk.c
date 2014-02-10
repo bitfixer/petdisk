@@ -27,10 +27,10 @@
 #include <avr/pgmspace.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
-#include "SPI_routines.h"
-#include "SD_routines.h"
-#include "UART_routines.h"
-#include "FAT32.h"
+#include "bf-avr-sdlib/SPI_routines.h"
+#include "bf-avr-sdlib/SD_routines.h"
+#include "bf-avr-sdlib/UART_routines.h"
+#include "bf-avr-sdlib/FAT32.h"
 #include "IEEE488.h"
 
 #define SPI_PORT PORTB
@@ -126,7 +126,7 @@ int main(void)
     transmitHex(CHAR, address);
     TX_NEWLINE;
     
-    cardType = 0;
+    _cardType = 0;
 
     struct dir_Structure *dir;
     unsigned long cluster, byteCounter = 0, fileSize, firstSector;
@@ -297,17 +297,17 @@ int main(void)
             // try reading block
             if (progname[0] == '$')
             {
-                buffer[0] = 0x01;
-                buffer[1] = 0x04;
-                buffer[2] = 0x1F;
-                buffer[3] = 0x04;
-                buffer[4] = 0x00;
-                buffer[5] = 0x00;
-                buffer[6] = 0x12;
+                _buffer[0] = 0x01;
+                _buffer[1] = 0x04;
+                _buffer[2] = 0x1F;
+                _buffer[3] = 0x04;
+                _buffer[4] = 0x00;
+                _buffer[5] = 0x00;
+                _buffer[6] = 0x12;
                 
                 // print directory title
-                sprintf(&buffer[7], "\"PETDISK V1.21   \"      ");
-                buffer[31] = 0x00;
+                sprintf(&_buffer[7], "\"PETDISK V1.21   \"      ");
+                _buffer[31] = 0x00;
             }
         }
         
@@ -354,7 +354,6 @@ int main(void)
                     fileSize = dir->fileSize;
                     firstSector = getFirstSector (cluster);
                     SD_readSingleBlock(firstSector);
-                    //transmitString("got file!");
                 }
                 
                 // clear string
@@ -366,8 +365,11 @@ int main(void)
             else 
             {
                 // open file
-                openFile(progname, &cl);
-                cl = fileStartCluster;
+                //openFile(progname, &cl);
+                //cl = fileStartCluster;
+                
+                openFileForWriting(progname, _rootCluster);
+                cl = _filePosition.startCluster;
             }
 
         }
@@ -419,11 +421,11 @@ int main(void)
                 transmitString("directory..");
                 for (i = 0; i < 32; i++)
                 {
-                    send_byte(buffer[i],0);
+                    send_byte(_buffer[i],0);
                 }
                 
                 // write directory entries
-                ListFilesIEEE();
+                //ListFilesIEEE();
             }
             else
             {
@@ -433,7 +435,7 @@ int main(void)
             {
               firstSector = getFirstSector (cluster);
             
-              for(j=0; j<sectorPerCluster; j++)
+              for(j=0; j<_sectorPerCluster; j++)
               {
                 if (byteCounter > 0)
                 {
@@ -444,14 +446,14 @@ int main(void)
                 {
                     if (byteCounter+1 >= fileSize)
                     {
-                        send_byte(buffer[k], 1);
+                        send_byte(_buffer[k], 1);
                         k = 512;
-                        j = sectorPerCluster;
+                        j = _sectorPerCluster;
                         sending = 0;
                     }
                     else
                     {
-                        send_byte(buffer[k], 0);
+                        send_byte(_buffer[k], 0);
                         byteCounter++;
                     }
                 }
@@ -479,7 +481,7 @@ int main(void)
         else if (rdchar == 0x61 && (rdbus & ATN) == 0)
         {
             // save command
-            writeFileFromIEEE(progname, cl);
+            //writeFileFromIEEE(progname, cl);
             unlisten();
         }
     }

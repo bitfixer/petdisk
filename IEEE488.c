@@ -30,7 +30,7 @@
 #include <inttypes.h>
 #include <util/delay.h>
 #include <string.h>
-#include "UART_routines.h"
+#include "bf-avr-sdlib/UART_routines.h"
 
 void wait_for_dav_high()
 {
