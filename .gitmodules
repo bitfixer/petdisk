@@ -1,0 +1,3 @@
+[submodule "bf-avr-sdlib"]
+	path = bf-avr-sdlib
+	url = git@github.com:bitfixer/bf-avr-sdlib.git
