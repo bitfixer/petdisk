@@ -159,6 +159,7 @@ int main(void)
       if(!error) break;
     }
     
+    /*
     if (!error)
     {
         error = getBootSectorData (); //read boot sector and keep necessary data in global variables
@@ -186,10 +187,9 @@ int main(void)
         {
             transmitString("no firmware.");
         }
-
-    
-    }   
-    
+    }
+    */
+     
     // start main loop
     while(1)
     {
@@ -334,9 +334,11 @@ int main(void)
         {
             if (savefile == 0)
             {
-                islong = convertFileName(progname);
-                    
-                dir = findFilesL(GET_FILE, progname, islong);
+                //islong = convertFileName(progname);
+                islong = 1;
+                
+                //dir = findFilesL(GET_FILE, progname, islong);
+                dir = findFile(progname, _rootCluster);
                 if (dir == 0)
                 {
                     // file not found
@@ -347,7 +349,8 @@ int main(void)
                 }
                 else
                 {
-                    cluster = (((unsigned long) dir->firstClusterHI) << 16) | dir->firstClusterLO;
+                    //cluster = (((unsigned long) dir->firstClusterHI) << 16) | dir->firstClusterLO;
+                    cluster = getFirstCluster(dir);
                     fileSize = dir->fileSize;
                     firstSector = getFirstSector (cluster);
                     SD_readSingleBlock(firstSector);
