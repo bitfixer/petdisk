@@ -326,30 +326,6 @@ int main(void)
                 
                 // clear string
                 for (i = 0; i < FNAMELEN; i++) progname[i] = 0x00;
-                
-                /*
-                dir = findFile(progname, _rootCluster);
-                if (dir == 0)
-                {
-                    // file not found
-                    // release the bus
-                    transmitString("file not found");
-                    filenotfound = 1;
-                }
-                else
-                {
-                    cluster = getFirstCluster(dir);
-                    fileSize = dir->fileSize;
-                    firstSector = getFirstSector (cluster);
-                    SD_readSingleBlock(firstSector);
-                }
-                
-                // clear string
-                for (i = 0; i < FNAMELEN; i++)
-                {
-                    progname[i] = 0x00;
-                }
-                */
             }
             else 
             {
@@ -412,78 +388,47 @@ int main(void)
                     }
                     
                     // write directory entries
-                    //ListFilesIEEE();
+                    ListFilesIEEE();
                 }
                 else
                 {
-                sending = 1;
-                byteCounter = 1;
-                fileSize = _filePosition.fileSize;
-                while(sending == 1)
-                {
-                    if (_filePosition.byteCounter < _filePosition.fileSize)
+                    sending = 1;
+                    byteCounter = 1;
+                    fileSize = _filePosition.fileSize;
+                    while(sending == 1)
                     {
-                        bytes_to_send = getNextFileBlock();
-                        for (k = 0; k < bytes_to_send; k++)
+                        if (_filePosition.byteCounter < _filePosition.fileSize)
                         {
-                            if (byteCounter >= fileSize)
+                            bytes_to_send = getNextFileBlock();
+                            for (k = 0; k < bytes_to_send; k++)
                             {
-                                send_byte(_buffer[k], 1);
-                            }
-                            else
-                            {
-                                send_byte(_buffer[k], 0);
-                                byteCounter++;
+                                if (byteCounter >= fileSize)
+                                {
+                                    send_byte(_buffer[k], 1);
+                                }
+                                else
+                                {
+                                    send_byte(_buffer[k], 0);
+                                    byteCounter++;
+                                }
                             }
                         }
-                    }
-                    else
-                    {
-                        sending = 0;
-                    }
-                    
-                    
-                    
-                    /*
-                    firstSector = getFirstSector (cluster);
-
-                    for(j=0; j<_sectorPerCluster; j++)
-                    {
-                        if (byteCounter > 0)
+                        else
                         {
-                            SD_readSingleBlock(firstSector + j);
-                        }
-
-                        for(k=0; k<512; k++)
-                        {
-                            if (byteCounter+1 >= fileSize)
-                            {
-                                send_byte(_buffer[k], 1);
-                                k = 512;
-                                j = _sectorPerCluster;
-                                sending = 0;
-                            }
-                            else
-                            {
-                                send_byte(_buffer[k], 0);
-                                byteCounter++;
-                            }
+                            sending = 0;
                         }
                     }
-                    cluster = getSetNextCluster (cluster, GET, 0);
-                    */
                 }
-            }
             
-            // raise DAV and EOI
-            PORTC = 0xFF;
-            
-            // switch back to input mode
-            DDRC = NRFD | NDAC;
-            
-            DATA_CTL = 0x00;
-            DDRB = ~MISO & ~DATA0 & ~DATA1 & ~CASSETTE_READ & ~CASSETTE_WRITE;
-            PORTC = NOT_NDAC;
+                // raise DAV and EOI
+                PORTC = 0xFF;
+                
+                // switch back to input mode
+                DDRC = NRFD | NDAC;
+                
+                DATA_CTL = 0x00;
+                DDRB = ~MISO & ~DATA0 & ~DATA1 & ~CASSETTE_READ & ~CASSETTE_WRITE;
+                PORTC = NOT_NDAC;
             }
             
             unlisten();
