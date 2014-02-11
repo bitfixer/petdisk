@@ -43,21 +43,16 @@
 
 void port_init(void)
 {
-SPI_CTL = ~MISO & ~DATA0 & ~DATA1 & ~CASSETTE_READ & ~CASSETTE_WRITE;
-SPI_PORT = 0xff;
+    SPI_CTL = ~MISO & ~DATA0 & ~DATA1 & ~CASSETTE_READ & ~CASSETTE_WRITE;
+    SPI_PORT = 0xff;
 
-/*
-IEEE_CTL = NDAC | NRFD;
-PORTC = ~NDAC;
-*/
+    // all IEEE lines input
+    IEEE_CTL = 0x00;
+    // activate pullups
+    IEEE_PORT = 0xFF;
 
-// all IEEE lines input
-IEEE_CTL = 0x00;
-// activate pullups
-IEEE_PORT = 0xFF;
-
-// set data lines to input
-DATA_CTL = 0x00;
+    // set data lines to input
+    DATA_CTL = 0x00;
 }
 
 
@@ -70,9 +65,6 @@ void init_devices(void)
  uart0_init(MYUBRR);
 
  MCUCR = 0x00;
- //GICR  = 0x00;
- //TIMSK = 0x00; //timer interrupt sources
- //all peripherals are now initialized
 }
 
 unsigned char get_device_address()
@@ -116,7 +108,7 @@ int main(void)
     unsigned char filename_position;
     unsigned char islong;
     unsigned char address;
-    int bytes_to_send;
+    unsigned int bytes_to_send;
     unsigned char i;
     
     address = get_device_address();
@@ -276,16 +268,6 @@ int main(void)
                     getting_filename = 0;
                     filename_position = 0;
                     
-                    /*
-                    // testing only
-                    progname[filename_position++] = 'A';
-                    progname[filename_position++] = '.';
-                    progname[filename_position++] = 'P';
-                    progname[filename_position++] = 'R';
-                    progname[filename_position++] = 'G';
-                    progname[filename_position] = 0;
-                    */
-                    
                     transmitString(progname);
                     
                     gotname = 1;
@@ -317,7 +299,6 @@ int main(void)
         // open file if needed
         if (initcard == 0)
         {
-            //transmitString("init card");
             // initialize card
             for (i=0; i<10; i++)
             {
@@ -327,7 +308,6 @@ int main(void)
             
             error = getBootSectorData (); //read boot sector and keep necessary data in global variables
             
-            //transmitString("@");
             initcard = 1;
         }
         if (gotname == 1)
@@ -337,19 +317,27 @@ int main(void)
                 //islong = convertFileName(progname);
                 islong = 1;
                 
-                //dir = findFilesL(GET_FILE, progname, islong);
+                if (!openFileForReading(progname, _rootCluster))
+                {
+                    // file not found
+                    transmitString("file not found");
+                    filenotfound = 1;
+                }
+                
+                // clear string
+                for (i = 0; i < FNAMELEN; i++) progname[i] = 0x00;
+                
+                /*
                 dir = findFile(progname, _rootCluster);
                 if (dir == 0)
                 {
                     // file not found
                     // release the bus
                     transmitString("file not found");
-                    //unlisten();
                     filenotfound = 1;
                 }
                 else
                 {
-                    //cluster = (((unsigned long) dir->firstClusterHI) << 16) | dir->firstClusterLO;
                     cluster = getFirstCluster(dir);
                     fileSize = dir->fileSize;
                     firstSector = getFirstSector (cluster);
@@ -361,6 +349,7 @@ int main(void)
                 {
                     progname[i] = 0x00;
                 }
+                */
             }
             else 
             {
@@ -399,75 +388,97 @@ int main(void)
         {
             if (filenotfound == 0)
             {
-            // this is a LOAD
-            // release NRFD/NDAC
-            DDRC = NDAC;
-            
-            // wait for atn high
-            wait_for_atn_high();
-        
-            DDRC = DAV | EOI;
-            PORTC = 0xFF;
-            
-            // change data bus to output
-            //DDRA = 0xFF;
-            DATA_CTL = 0xff;
-            DDRB = DDRB | (DATA0 | DATA1);
-            
-            // get packet
-            
-            if (strcmp(progname, "$") == 0)
-            {
-                transmitString("directory..");
-                for (i = 0; i < 32; i++)
-                {
-                    send_byte(_buffer[i],0);
-                }
+                // this is a LOAD
+                // release NRFD/NDAC
+                DDRC = NDAC;
                 
-                // write directory entries
-                //ListFilesIEEE();
-            }
-            else
-            {
-            sending = 1;
-            byteCounter = 0;
-            while(sending == 1)
-            {
-              firstSector = getFirstSector (cluster);
+                // wait for atn high
+                wait_for_atn_high();
             
-              for(j=0; j<_sectorPerCluster; j++)
-              {
-                if (byteCounter > 0)
-                {
-                    SD_readSingleBlock(firstSector + j);
-                }
+                DDRC = DAV | EOI;
+                PORTC = 0xFF;
                 
-                for(k=0; k<512; k++)
+                // change data bus to output
+                DATA_CTL = 0xff;
+                DDRB = DDRB | (DATA0 | DATA1);
+                
+                // get packet
+                if (strcmp(progname, "$") == 0)
                 {
-                    if (byteCounter+1 >= fileSize)
+                    transmitString("directory..");
+                    for (i = 0; i < 32; i++)
                     {
-                        send_byte(_buffer[k], 1);
-                        k = 512;
-                        j = _sectorPerCluster;
-                        sending = 0;
+                        send_byte(_buffer[i],0);
+                    }
+                    
+                    // write directory entries
+                    //ListFilesIEEE();
+                }
+                else
+                {
+                sending = 1;
+                byteCounter = 1;
+                fileSize = _filePosition.fileSize;
+                while(sending == 1)
+                {
+                    if (_filePosition.byteCounter < _filePosition.fileSize)
+                    {
+                        bytes_to_send = getNextFileBlock();
+                        for (k = 0; k < bytes_to_send; k++)
+                        {
+                            if (byteCounter >= fileSize)
+                            {
+                                send_byte(_buffer[k], 1);
+                            }
+                            else
+                            {
+                                send_byte(_buffer[k], 0);
+                                byteCounter++;
+                            }
+                        }
                     }
                     else
                     {
-                        send_byte(_buffer[k], 0);
-                        byteCounter++;
+                        sending = 0;
                     }
+                    
+                    
+                    
+                    /*
+                    firstSector = getFirstSector (cluster);
+
+                    for(j=0; j<_sectorPerCluster; j++)
+                    {
+                        if (byteCounter > 0)
+                        {
+                            SD_readSingleBlock(firstSector + j);
+                        }
+
+                        for(k=0; k<512; k++)
+                        {
+                            if (byteCounter+1 >= fileSize)
+                            {
+                                send_byte(_buffer[k], 1);
+                                k = 512;
+                                j = _sectorPerCluster;
+                                sending = 0;
+                            }
+                            else
+                            {
+                                send_byte(_buffer[k], 0);
+                                byteCounter++;
+                            }
+                        }
+                    }
+                    cluster = getSetNextCluster (cluster, GET, 0);
+                    */
                 }
-              }
-              cluster = getSetNextCluster (cluster, GET, 0);
-              //if(cluster == 0) {transmitString_F(PSTR("Error in getting cluster")); return 0;}
-            }
             }
             
             // raise DAV and EOI
             PORTC = 0xFF;
             
             // switch back to input mode
-            
             DDRC = NRFD | NDAC;
             
             DATA_CTL = 0x00;
