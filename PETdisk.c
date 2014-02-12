@@ -388,7 +388,7 @@ int main(void)
                     }
                     
                     // write directory entries
-                    ListFilesIEEE();
+                    ListFilesIEEE(_rootCluster);
                 }
                 else
                 {
