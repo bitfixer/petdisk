@@ -31,6 +31,8 @@
 #include <util/delay.h>
 #include <string.h>
 #include "bf-avr-sdlib/UART_routines.h"
+#include "bf-avr-sdlib/FAT32.h"
+#include "bf-avr-sdlib/sd_routines.h"
 
 void wait_for_dav_high()
 {
@@ -220,6 +222,50 @@ unsigned char wait_for_device_address(unsigned char my_address)
     }
     return dir;
 }
+
+void writeFileFromIEEE ()
+{
+    unsigned int numBytes;
+    unsigned char rdchar;
+    unsigned char rdbus;
+    unsigned char data;
+    
+    numBytes = 0;
+    do
+    {
+        wait_for_dav_low();
+        PORTC = NOT_NDAC & NOT_NRFD;
+        // read byte
+        recv_byte_IEEE(&rdchar);
+        rdbus = PINC;
+        
+        data = rdchar;
+        
+        _buffer[numBytes++] = data;
+        
+        if(numBytes >= 512)   //though 'i' will never become greater than 512, it's kept here to avoid
+        {				//infinite loop in case it happens to be greater than 512 due to some data corruption
+            numBytes = 0;
+            writeBufferToFile(numBytes);
+        }
+        
+        // raise NDAC
+        PORTC = NOT_NRFD;
+        wait_for_dav_high();
+        PORTC = NOT_NDAC;
+	}
+    while((rdbus & EOI) != 0x00);
+    
+    //if((rdbus & EOI) == 0x00)
+    
+    if (numBytes > 0)
+    {
+        writeBufferToFile(numBytes);
+    }
+    
+    closeFile();
+}
+
 
 /*
 // added function to generate directory file readable by PET
