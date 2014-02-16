@@ -97,6 +97,45 @@ unsigned char get_device_address()
     
 }
 
+/*
+int main(void)
+{
+    unsigned char i;
+    unsigned char progname[20];
+    unsigned char error;
+    init_devices();
+    
+    // initialize SD card
+    for (i=0; i<10; i++)
+    {
+        error = SD_init();
+        if(!error) break;
+    }
+    
+    error = getBootSectorData (); //read boot sector and keep necessary data in global variables
+    
+    
+    memset(progname, 0, 20);
+    // look for firmware file
+    progname[0] = 'T';
+    progname[1] = 'E';
+    progname[2] = 'S';
+    progname[3] = 'T';
+    progname[4] = '.';
+    progname[5] = 'T';
+    progname[6] = 'X';
+    progname[7] = 'T';
+    
+    openFileForWriting(progname, _rootCluster);
+    
+    memset(_buffer, 'A', 512);
+    writeBufferToFile(512);
+    
+    closeFile();
+    
+}
+*/
+
 int main(void)
 {
     unsigned char fileName[11];
@@ -288,7 +327,7 @@ int main(void)
                 _buffer[6] = 0x12;
                 
                 // print directory title
-                sprintf(&_buffer[7], "\"PETDISK V1.21   \"      ");
+                sprintf(&_buffer[7], "\"PETDISK V2.0    \"      ");
                 _buffer[31] = 0x00;
             }
         }
@@ -330,18 +369,12 @@ int main(void)
             else 
             {
                 // open file
-                //openFile(progname, &cl);
-                //cl = fileStartCluster;
-                
                 openFileForWriting(progname, _rootCluster);
-                cl = _filePosition.startCluster;
             }
 
         }
         
         gotname = 0;
-        
-        //transmitString(".");
         
         if ((rdchar == 0x3f) || rdchar == 0x5f && (rdbus & ATN) == 0x00)
         {
@@ -437,7 +470,7 @@ int main(void)
         else if (rdchar == 0x61 && (rdbus & ATN) == 0)
         {
             // save command
-            //writeFileFromIEEE(progname, cl);
+            writeFileFromIEEE();
             unlisten();
         }
     }

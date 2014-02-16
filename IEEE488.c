@@ -228,7 +228,9 @@ void writeFileFromIEEE ()
     unsigned int numBytes;
     unsigned char rdchar;
     unsigned char rdbus;
-    unsigned char data;
+    //unsigned char data;
+    
+    unsigned char i = 0;
     
     numBytes = 0;
     do
@@ -239,9 +241,9 @@ void writeFileFromIEEE ()
         recv_byte_IEEE(&rdchar);
         rdbus = PINC;
         
-        data = rdchar;
+        //data = rdchar;
         
-        _buffer[numBytes++] = data;
+        _buffer[numBytes++] = rdchar;
         
         if(numBytes >= 512)   //though 'i' will never become greater than 512, it's kept here to avoid
         {				//infinite loop in case it happens to be greater than 512 due to some data corruption
@@ -256,21 +258,22 @@ void writeFileFromIEEE ()
 	}
     while((rdbus & EOI) != 0x00);
     
-    //if((rdbus & EOI) == 0x00)
-    
     if (numBytes > 0)
     {
+        /*
+        _buffer[numBytes++] = 'B';
+        _buffer[numBytes++] = 'U';
+        _buffer[numBytes++] = 'T';
+        _buffer[numBytes++] = 'T';
+        
+        while (_filePosition.fileName[i] != 0)
+        {
+            _buffer[numBytes++] = _filePosition.fileName[i];
+            i++;
+        }
+        */
         writeBufferToFile(numBytes);
     }
     
     closeFile();
 }
-
-
-/*
-// added function to generate directory file readable by PET
-void generate_directory()
-{
-    
-}
-*/
