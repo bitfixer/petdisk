@@ -223,14 +223,152 @@ unsigned char wait_for_device_address(unsigned char my_address)
     return dir;
 }
 
+struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
+{
+    struct dir_Structure *dir;
+    unsigned char startline;
+    unsigned char entry[32];
+    unsigned char thisch;
+    unsigned int dir_start;
+    unsigned int f;
+    unsigned int file;
+    unsigned char hasLongEntry;
+    int fname_length;
+    
+    dir_start = 0x041f;
+    file = 0;
+    
+    // open the current directory
+    openDirectory(firstCluster);
+    
+    do {
+        // get next directory entry
+        dir = getNextDirectoryEntry();
+        
+        if (dir == 0) // this is the end of the directory
+        {
+            // write ending bytes
+            startline = 0;
+            dir_start += 0x001e;
+            
+            entry[startline] = (unsigned char)(dir_start & 0x00ff);
+            entry[startline+1] = (unsigned char)((dir_start & 0xff00) >> 8);
+            entry[startline+2] = 0xff;
+            entry[startline+3] = 0xff;
+            sprintf(&entry[startline+4], "BLOCKS FREE.             ");
+            entry[startline+29] = 0x00;
+            entry[startline+30] = 0x00;
+            entry[startline+31] = 0x00;
+            
+            for (f = 0; f < 32; f++)
+            {
+                if (f == 31)
+                {
+                    send_byte(entry[f], 1);
+                }
+                else
+                {
+                    send_byte(entry[f], 0);
+                }
+            }
+            return 0;
+        }
+        else
+        {
+            if (dir->attrib != ATTR_VOLUME_ID)
+            {
+                dir_start += 0x0020;
+                
+                startline = 0;
+                fname_length = 0;
+                
+                entry[startline] = (unsigned char)(dir_start & 0x00ff);
+                entry[startline+1] = (unsigned char)((dir_start & 0xff00) >> 8);
+                entry[startline+2] = file+1;
+                entry[startline+3] = 0x00;
+                entry[startline+4] = 0x20;
+                entry[startline+5] = 0x20;
+                entry[startline+6] = 0x22;
+                
+                hasLongEntry = _filePosition.isLongFilename;
+                if (hasLongEntry)
+                {
+                    if (_filePosition.fileName[0] == 0)
+                    {
+                        hasLongEntry = 0;
+                    }
+                }
+                
+                if (hasLongEntry)
+                {
+                    while(_filePosition.fileName[fname_length] != '.' &&
+                          _filePosition.fileName[fname_length] != 0 &&
+                          fname_length < 17)
+                    {
+                        thisch = _filePosition.fileName[fname_length];
+                        if (thisch >= 'a' && thisch <= 'z')
+                        {
+                            thisch -= 32;
+                        }
+                        entry[startline+7+fname_length] = thisch;
+                        fname_length++;
+                    }
+                }
+                else
+                {
+                    fname_length = 0;
+                    for (f = 0; f < 8; f++)
+                    {
+                        if (dir->name[f] == ' ')
+                            break;
+                        
+                        entry[startline+7+f] = dir->name[f];
+                        fname_length++;
+                    }
+                }
+                
+                entry[startline+7+fname_length] = 0x22;
+                for (f = 0; f < (17 - fname_length); f++)
+                {
+                    entry[startline+7+fname_length+f+1] = ' ';
+                }
+                
+                
+                if (dir->attrib == ATTR_DIRECTORY)
+                {
+                    entry[startline+25] = 'D';
+                    entry[startline+26] = 'I';
+                    entry[startline+27] = 'R';
+                }
+                else
+                {
+                    entry[startline+25] = dir->name[8];
+                    entry[startline+26] = dir->name[9];
+                    entry[startline+27] = dir->name[10];
+                }
+                
+                entry[startline+28] = ' ';
+                entry[startline+29] = ' ';
+                entry[startline+30] = ' ';
+                entry[startline+31] = 0x00;
+                file++;
+                
+                for (f = 0; f < 32; f++)
+                {
+                    send_byte(entry[f], 0);
+                }
+            }
+        }
+    }
+    while (dir != 0);
+}
+
+
 void writeFileFromIEEE ()
 {
     unsigned int numBytes;
     unsigned char rdchar;
     unsigned char rdbus;
-    //unsigned char data;
-    
-    unsigned char i = 0;
     
     numBytes = 0;
     do
@@ -240,8 +378,6 @@ void writeFileFromIEEE ()
         // read byte
         recv_byte_IEEE(&rdchar);
         rdbus = PINC;
-        
-        //data = rdchar;
         
         _buffer[numBytes++] = rdchar;
         
@@ -260,18 +396,6 @@ void writeFileFromIEEE ()
     
     if (numBytes > 0)
     {
-        /*
-        _buffer[numBytes++] = 'B';
-        _buffer[numBytes++] = 'U';
-        _buffer[numBytes++] = 'T';
-        _buffer[numBytes++] = 'T';
-        
-        while (_filePosition.fileName[i] != 0)
-        {
-            _buffer[numBytes++] = _filePosition.fileName[i];
-            i++;
-        }
-        */
         writeBufferToFile(numBytes);
     }
     

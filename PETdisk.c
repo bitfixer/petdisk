@@ -199,36 +199,30 @@ int main(void)
       if(!error) break;
     }
     
-    /*
     if (!error)
     {
-        error = getBootSectorData (); //read boot sector and keep necessary data in global variables
+        error = getBootSectorData(); //read boot sector and keep necessary data in global variables
     
-		transmitString("got card");
-		transmitHex(INT, bytesPerSector);
-	
-        // look for firmware file
-        progname[0] = 'F';
-        progname[1] = 'I';
-        progname[2] = 'R';
-        progname[3] = 'M';
+		// look for firmware file
+        progname[0] = 'A';
+        progname[1] = 'D';
+        progname[2] = 'F';
+        progname[3] = 'D';
         progname[4] = '*';
-        dir = findFilesL(GET_FILE, progname, 0);
+        progname[5] = 0;
+        dir = findFile(progname, _rootCluster);
         
         if (dir != 0)
         {
             // found firmware file
             transmitString("found firmware..");
-            
-            // delete the file
-            dir = findFilesL(DELETE, progname, 0);
+            deleteFile();
         } 
         else 
         {
             transmitString("no firmware.");
         }
     }
-    */
      
     // start main loop
     while(1)
