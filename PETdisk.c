@@ -21,7 +21,7 @@
 */
 
 #define F_CPU 8000000UL		//freq 8 MHz
-#define BAUD 19200
+#define BAUD 9600
 #define MYUBRR F_CPU/16/BAUD-1
 #include <avr/io.h>
 #include <avr/pgmspace.h>
@@ -118,13 +118,22 @@ int main(void)
     memset(progname, 0, 20);
     // look for firmware file
     progname[0] = 'T';
-    progname[1] = 'E';
-    progname[2] = 'S';
-    progname[3] = 'T';
-    progname[4] = '.';
-    progname[5] = 'T';
-    progname[6] = 'X';
-    progname[7] = 'T';
+    progname[1] = 'H';
+    progname[2] = 'I';
+    progname[3] = 'S';
+    progname[4] = ' ';
+    progname[5] = 'I';
+    progname[6] = 'S';
+    progname[7] = ' ';
+    progname[8] = 'C';
+    progname[9] = 'O';
+    progname[10] = 'O';
+    progname[11] = 'L';
+    progname[12] = '.';
+    progname[13] = 'T';
+    progname[14] = 'X';
+    progname[15] = 'T';
+    progname[16] = 0;
     
     openFileForWriting(progname, _rootCluster);
     
