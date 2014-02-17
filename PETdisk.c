@@ -149,15 +149,14 @@ int main(void)
 {
     unsigned char fileName[11];
     unsigned char progname[FNAMELEN];
-    unsigned char tmp[50];
-    unsigned char rdchar,rdbus,tmp1,tmp2,ctl;
+    unsigned char rdchar,rdbus,ctl;
     unsigned char option, error, data, FAT32_active;
     unsigned char getting_filename;
     unsigned char filename_position;
-    unsigned char islong;
     unsigned char address;
     unsigned int bytes_to_send;
     unsigned char i;
+    unsigned long currentDirectoryCluster;
     
     address = get_device_address();
     
@@ -202,12 +201,13 @@ int main(void)
     if (!error)
     {
         error = getBootSectorData(); //read boot sector and keep necessary data in global variables
+        currentDirectoryCluster = _rootCluster;
     
 		// look for firmware file
-        progname[0] = 'A';
-        progname[1] = 'D';
-        progname[2] = 'F';
-        progname[3] = 'D';
+        progname[0] = 'F';
+        progname[1] = 'I';
+        progname[2] = 'R';
+        progname[3] = 'M';
         progname[4] = '*';
         progname[5] = 0;
         dir = findFile(progname, _rootCluster);
@@ -311,14 +311,13 @@ int main(void)
                     filename_position = 0;
                     
                     transmitString(progname);
-                    
                     gotname = 1;
                 }
             }
         }
         else if (rdchar == 0x60 && (rdbus & ATN) == 0x00)
         {
-            // try reading block
+            // check for directory command
             if (progname[0] == '$')
             {
                 _buffer[0] = 0x01;
@@ -345,10 +344,21 @@ int main(void)
             for (i=0; i<10; i++)
             {
               error = SD_init();
-              if(!error) break;
+              if(!error)
+                  break;
+            }
+            
+            if (i == 10)
+            {
+                // reset current directory to root
+                currentDirectoryCluster = 0;
             }
             
             error = getBootSectorData (); //read boot sector and keep necessary data in global variables
+            if (currentDirectoryCluster == 0)
+            {
+                currentDirectoryCluster = _rootCluster;
+            }
             
             initcard = 1;
         }
@@ -356,10 +366,7 @@ int main(void)
         {
             if (savefile == 0)
             {
-                //islong = convertFileName(progname);
-                islong = 1;
-                
-                if (!openFileForReading(progname, _rootCluster))
+                if (!openFileForReading(progname, currentDirectoryCluster))
                 {
                     // file not found
                     transmitString("file not found");
@@ -372,9 +379,8 @@ int main(void)
             else 
             {
                 // open file
-                openFileForWriting(progname, _rootCluster);
+                openFileForWriting(progname, currentDirectoryCluster);
             }
-
         }
         
         gotname = 0;
@@ -382,10 +388,10 @@ int main(void)
         if ((rdchar == 0x3f) || rdchar == 0x5f && (rdbus & ATN) == 0x00)
         {
             // unlisten or untalk command
-            //unlisten();
             PORTC = NOT_NDAC;
-            transmitByte('*');
-            transmitHex(CHAR, rdchar);
+            
+            //transmitByte('*');
+            //transmitHex(CHAR, rdchar);
             
             unlisten();
         }
@@ -415,7 +421,8 @@ int main(void)
                 DDRB = DDRB | (DATA0 | DATA1);
                 
                 // get packet
-                if (strcmp(progname, "$") == 0)
+                //if (strcmp(progname, "$") == 0)
+                if (progname[0] == '$')
                 {
                     transmitString("directory..");
                     for (i = 0; i < 32; i++)
@@ -423,8 +430,31 @@ int main(void)
                         send_byte(_buffer[i],0);
                     }
                     
+                    // this is a change directory command
+                    if (progname[1] == ':')
+                    {
+                        // get the cluster for the new directory
+                        //transmitString(&progname[2]);
+                        //TX_NEWLINE;
+                        
+                        dir = findFile(&progname[2], currentDirectoryCluster);
+                        
+                        if (dir != 0)
+                        {
+                            // get new directory cluster
+                            currentDirectoryCluster = getFirstCluster(dir);
+                            if (currentDirectoryCluster == 0)
+                            {
+                                currentDirectoryCluster = _rootCluster;
+                            }
+                        }
+                        
+                        //transmitHex(LONG, currentDirectoryCluster);
+                        //TX_NEWLINE;
+                    }
+                    
                     // write directory entries
-                    ListFilesIEEE(_rootCluster);
+                    ListFilesIEEE(currentDirectoryCluster);
                 }
                 else
                 {
