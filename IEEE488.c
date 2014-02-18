@@ -223,6 +223,27 @@ unsigned char wait_for_device_address(unsigned char my_address)
     return dir;
 }
 
+void sendIEEEBytes(unsigned char *entry, unsigned char size, unsigned char isLast)
+{
+    unsigned char i;
+    unsigned char last = size;
+    
+    if (isLast)
+    {
+        last--;
+    }
+    
+    for (i = 0; i < last; i++)
+    {
+        send_byte(entry[i], 0);
+    }
+    
+    if (isLast)
+    {
+        send_byte(entry[i], 1);
+    }
+}
+
 struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
 {
     struct dir_Structure *dir;
@@ -234,10 +255,76 @@ struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
     unsigned int file;
     unsigned char hasLongEntry;
     unsigned char extPos;
+    unsigned long prevDirCluster;
+    unsigned long currentCluster;
+    unsigned char *ustr;
     int fname_length;
     
     dir_start = 0x041f;
     file = 0;
+    
+    // if not the root directory, find the name of current directory
+    if (firstCluster != _rootCluster)
+    {
+        // clear the entry buffer
+        memset(entry, 0, 32);
+        entry[0] = '.';
+        entry[1] = '.';
+        
+        // get containing directory
+        dir = findFile(entry, firstCluster);
+        
+        prevDirCluster = getFirstCluster(dir);
+        if (prevDirCluster == 0)
+        {
+            prevDirCluster = _rootCluster;
+        }
+        
+        currentCluster = 0;
+        // open the containing directory
+        openDirectory(prevDirCluster);
+        
+        memset(entry, ' ', 32);
+        do
+        {
+            dir = getNextDirectoryEntry();
+            
+            if (dir != 0)
+            {
+                currentCluster = getFirstCluster(dir);
+                if (currentCluster == firstCluster)
+                {
+                    if (_filePosition.fileName != 0)
+                    {
+                        ustr = strupr((unsigned char *)_filePosition.fileName);
+                        memcpy(&entry[6], ustr, strlen(ustr));
+                    }
+                    else
+                    {
+                        memcpy(&entry[6], dir->name, 11);
+                    }
+                    
+                    // found the current directory entry
+                    dir = 0;
+                }
+            }
+        }
+        while (dir != 0);
+        
+        dir_start += 0x0020;
+        
+        startline = 0;
+        entry[startline] = (unsigned char)(dir_start & 0x00ff);
+        entry[startline+1] = (unsigned char)((dir_start & 0xff00) >> 8);
+        entry[startline+2] = file+1;
+        entry[startline+3] = 0x00;
+        entry[startline+4] = 0x12;
+        entry[startline+5] = 0x22;
+        entry[startline+31] = 0x00;
+        file++;
+        
+        sendIEEEBytes(entry, 32, 0);
+    }
     
     // open the current directory
     openDirectory(firstCluster);
@@ -261,17 +348,7 @@ struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
             entry[startline+30] = 0x00;
             entry[startline+31] = 0x00;
             
-            for (f = 0; f < 32; f++)
-            {
-                if (f == 31)
-                {
-                    send_byte(entry[f], 1);
-                }
-                else
-                {
-                    send_byte(entry[f], 0);
-                }
-            }
+            sendIEEEBytes(entry, 32, 1);
             return 0;
         }
         else
@@ -325,23 +402,6 @@ struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
                         }
                         entry[startline+7+f] = thisch;
                     }
-                    
-                    
-                    /*
-                    
-                    while(_filePosition.fileName[fname_length] != '.' &&
-                          _filePosition.fileName[fname_length] != 0 &&
-                          fname_length < 17)
-                    {
-                        thisch = _filePosition.fileName[fname_length];
-                        if (thisch >= 'a' && thisch <= 'z')
-                        {
-                            thisch -= 32;
-                        }
-                        entry[startline+7+fname_length] = thisch;
-                        fname_length++;
-                    }
-                    */
                 }
                 else
                 {
@@ -382,10 +442,7 @@ struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
                 entry[startline+31] = 0x00;
                 file++;
                 
-                for (f = 0; f < 32; f++)
-                {
-                    send_byte(entry[f], 0);
-                }
+                sendIEEEBytes(entry, 32, 0);
             }
         }
     }

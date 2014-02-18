@@ -38,8 +38,39 @@
 #define MISO     0x10
 #define CASSETTE_READ 0x40
 #define CASSETTE_WRITE 0x80
-
 #define FNAMELEN    39
+
+/*
+_buffer[0] = 0x01;
+_buffer[1] = 0x04;
+_buffer[2] = 0x1F;
+_buffer[3] = 0x04;
+_buffer[4] = 0x00;
+_buffer[5] = 0x00;
+_buffer[6] = 0x12;
+*/
+
+const unsigned char _dirHeader[] PROGMEM =
+{
+    0x01,
+    0x04,
+    0x1F,
+    0x04,
+    0x00,
+    0x00,
+    0x12,
+};
+
+const unsigned char _versionString[] PROGMEM = "\"PETDISK V2.0    \"      ";
+
+void pgm_memcpy(unsigned char *dest, unsigned char *src, int len)
+{
+    int i;
+    for (i = 0; i < len; i++)
+    {
+        *dest++ = pgm_read_byte(&(*src++));
+    }
+}
 
 void port_init(void)
 {
@@ -231,7 +262,6 @@ int main(void)
         {
             // if we are in an unlisten state,
             // wait for my address
-            //transmitString("waiting.");
             buscmd = wait_for_device_address(address);
             filenotfound = 0;
             if (buscmd == LISTEN)
@@ -321,6 +351,7 @@ int main(void)
             // check for directory command
             if (progname[0] == '$')
             {
+                /*
                 _buffer[0] = 0x01;
                 _buffer[1] = 0x04;
                 _buffer[2] = 0x1F;
@@ -328,9 +359,13 @@ int main(void)
                 _buffer[4] = 0x00;
                 _buffer[5] = 0x00;
                 _buffer[6] = 0x12;
+                */
+                // copy the directory header
+                pgm_memcpy(_buffer, _dirHeader, 7);
                 
                 // print directory title
-                sprintf(&_buffer[7], "\"PETDISK V2.0    \"      ");
+                //sprintf(&_buffer[7], "\"PETDISK V2.0    \"      ");
+                pgm_memcpy(&_buffer[7], _versionString, 24);
                 _buffer[31] = 0x00;
             }
         }
@@ -390,10 +425,6 @@ int main(void)
         {
             // unlisten or untalk command
             PORTC = NOT_NDAC;
-            
-            //transmitByte('*');
-            //transmitHex(CHAR, rdchar);
-            
             unlisten();
         }
         else 
@@ -422,7 +453,6 @@ int main(void)
                 DDRB = DDRB | (DATA0 | DATA1);
                 
                 // get packet
-                //if (strcmp(progname, "$") == 0)
                 if (progname[0] == '$')
                 {
                     transmitString("directory..");
@@ -434,24 +464,26 @@ int main(void)
                     // this is a change directory command
                     if (progname[1] == ':')
                     {
-                        // get the cluster for the new directory
-                        //transmitString(&progname[2]);
-                        //TX_NEWLINE;
-                        
-                        dir = findFile(&progname[2], currentDirectoryCluster);
-                        
-                        if (dir != 0)
+                        // check if we should return to root
+                        if (progname[2] == '\\' && progname[3] == 0)
                         {
-                            // get new directory cluster
-                            currentDirectoryCluster = getFirstCluster(dir);
-                            if (currentDirectoryCluster == 0)
+                            currentDirectoryCluster = _rootCluster;
+                        }
+                        else
+                        {
+                            // get the cluster for the new directory
+                            dir = findFile(&progname[2], currentDirectoryCluster);
+                            
+                            if (dir != 0)
                             {
-                                currentDirectoryCluster = _rootCluster;
+                                // get new directory cluster
+                                currentDirectoryCluster = getFirstCluster(dir);
+                                if (currentDirectoryCluster == 0)
+                                {
+                                    currentDirectoryCluster = _rootCluster;
+                                }
                             }
                         }
-                        
-                        //transmitHex(LONG, currentDirectoryCluster);
-                        //TX_NEWLINE;
                     }
                     
                     // write directory entries
@@ -459,6 +491,7 @@ int main(void)
                 }
                 else
                 {
+                    // send blocks of file
                     sending = 1;
                     byteCounter = 1;
                     fileSize = _filePosition.fileSize;
