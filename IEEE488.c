@@ -471,8 +471,9 @@ void writeFileFromIEEE ()
         
         if(numBytes >= 512)   //though 'i' will never become greater than 512, it's kept here to avoid
         {				//infinite loop in case it happens to be greater than 512 due to some data corruption
-            numBytes = 0;
+            transmitString("writing block..\r\n");
             writeBufferToFile(numBytes);
+            numBytes = 0;
         }
         
         // raise NDAC
@@ -484,6 +485,7 @@ void writeFileFromIEEE ()
     
     if (numBytes > 0)
     {
+        transmitString("writing last block\r\n");
         writeBufferToFile(numBytes);
     }
     
