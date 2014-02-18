@@ -281,6 +281,7 @@ int main(void)
             if ((rdbus & EOI) == 0)
             {
             
+                // this is a directory request
                 if (progname[0] == '$')
                 {
                     getting_filename = 0;

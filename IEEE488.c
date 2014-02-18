@@ -233,6 +233,7 @@ struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
     unsigned int f;
     unsigned int file;
     unsigned char hasLongEntry;
+    unsigned char extPos;
     int fname_length;
     
     dir_start = 0x041f;
@@ -301,6 +302,33 @@ struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
                 
                 if (hasLongEntry)
                 {
+                    fname_length = strlen(_filePosition.fileName);
+                    if (fname_length > 5)
+                    {
+                        if (_filePosition.fileName[fname_length-4] == '.')
+                        {
+                            fname_length = fname_length-4;
+                        }
+                    }
+                    
+                    if (fname_length >= 17)
+                    {
+                        fname_length = 17;
+                    }
+                    
+                    for (f = 0; f < fname_length; f++)
+                    {
+                        thisch = _filePosition.fileName[f];
+                        if (thisch >= 'a' && thisch <= 'z')
+                        {
+                            thisch -= 32;
+                        }
+                        entry[startline+7+f] = thisch;
+                    }
+                    
+                    
+                    /*
+                    
                     while(_filePosition.fileName[fname_length] != '.' &&
                           _filePosition.fileName[fname_length] != 0 &&
                           fname_length < 17)
@@ -313,6 +341,7 @@ struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
                         entry[startline+7+fname_length] = thisch;
                         fname_length++;
                     }
+                    */
                 }
                 else
                 {
