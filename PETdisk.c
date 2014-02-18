@@ -173,12 +173,6 @@ int main(void)
     getting_filename = 0;
     filename_position = 0;
     // clear string
-    /*
-    for (i = 0; i < FNAMELEN; i++)
-    {
-        progname[i] = 0x00;
-    }
-    */
     memset(progname, 0, FNAMELEN);
     
     // initialize SD card
@@ -349,7 +343,6 @@ int main(void)
                 }
                 
                 // clear string
-                //for (i = 0; i < FNAMELEN; i++) progname[i] = 0x00;
                 memset(progname, 0, FNAMELEN);
             }
             else 
@@ -395,13 +388,14 @@ int main(void)
                 // get packet
                 if (progname[0] == '$')
                 {
+                    transmitString("directory..");
                     sendIEEEBytes(_buffer, 32, 0);
                      
                     // this is a change directory command
                     if (progname[1] == ':')
                     {
                         // check if we should return to root
-                        if (progname[2] == '\\' && progname[3] == 0)
+                        if ((progname[2] == '\\' || progname[2] == '/') && progname[3] == 0)
                         {
                             currentDirectoryCluster = _rootCluster;
                         }
