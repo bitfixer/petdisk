@@ -22,6 +22,7 @@
 
 
 #include "IEEE488.h"
+#include "PETdisk.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -223,10 +224,10 @@ unsigned char wait_for_device_address(unsigned char my_address)
     return dir;
 }
 
-void sendIEEEBytes(unsigned char *entry, unsigned char size, unsigned char isLast)
+void sendIEEEBytes(unsigned char *entry, int size, unsigned char isLast)
 {
-    unsigned char i;
-    unsigned char last = size;
+    int i;
+    int last = size;
     
     if (isLast)
     {
@@ -294,7 +295,7 @@ struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
                 currentCluster = getFirstCluster(dir);
                 if (currentCluster == firstCluster)
                 {
-                    if (_filePosition.fileName != 0)
+                    if (_filePosition.fileName[0] != 0)
                     {
                         ustr = strupr((unsigned char *)_filePosition.fileName);
                         memcpy(&entry[6], ustr, strlen(ustr));
@@ -380,6 +381,7 @@ struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
                 if (hasLongEntry)
                 {
                     fname_length = strlen(_filePosition.fileName);
+                    
                     if (fname_length > 5)
                     {
                         if (_filePosition.fileName[fname_length-4] == '.')

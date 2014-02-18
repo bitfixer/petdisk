@@ -27,6 +27,7 @@
 #include <avr/pgmspace.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
+#include "PETdisk.h"
 #include "bf-avr-sdlib/SPI_routines.h"
 #include "bf-avr-sdlib/SD_routines.h"
 #include "bf-avr-sdlib/UART_routines.h"
@@ -39,16 +40,6 @@
 #define CASSETTE_READ 0x40
 #define CASSETTE_WRITE 0x80
 #define FNAMELEN    39
-
-/*
-_buffer[0] = 0x01;
-_buffer[1] = 0x04;
-_buffer[2] = 0x1F;
-_buffer[3] = 0x04;
-_buffer[4] = 0x00;
-_buffer[5] = 0x00;
-_buffer[6] = 0x12;
-*/
 
 const unsigned char _dirHeader[] PROGMEM =
 {
@@ -69,6 +60,16 @@ const unsigned char _fileExtension[] PROGMEM =
     'P',
     'R',
     'G',
+    0x00,
+};
+
+const unsigned char _firmwareFileName[] PROGMEM =
+{
+    'F',
+    'I',
+    'R',
+    'M',
+    '*',
     0x00,
 };
 
@@ -137,65 +138,17 @@ unsigned char get_device_address()
     
 }
 
-/*
 int main(void)
 {
-    unsigned char i;
-    unsigned char progname[20];
-    unsigned char error;
-    init_devices();
-    
-    // initialize SD card
-    for (i=0; i<10; i++)
-    {
-        error = SD_init();
-        if(!error) break;
-    }
-    
-    error = getBootSectorData (); //read boot sector and keep necessary data in global variables
-    
-    
-    memset(progname, 0, 20);
-    // look for firmware file
-    progname[0] = 'T';
-    progname[1] = 'H';
-    progname[2] = 'I';
-    progname[3] = 'S';
-    progname[4] = ' ';
-    progname[5] = 'I';
-    progname[6] = 'S';
-    progname[7] = ' ';
-    progname[8] = 'C';
-    progname[9] = 'O';
-    progname[10] = 'O';
-    progname[11] = 'L';
-    progname[12] = '.';
-    progname[13] = 'T';
-    progname[14] = 'X';
-    progname[15] = 'T';
-    progname[16] = 0;
-    
-    openFileForWriting(progname, _rootCluster);
-    
-    memset(_buffer, 'A', 512);
-    writeBufferToFile(512);
-    
-    closeFile();
-    
-}
-*/
-
-int main(void)
-{
-    unsigned char fileName[11];
     unsigned char progname[FNAMELEN];
-    unsigned char rdchar,rdbus,ctl;
-    unsigned char option, error, data, FAT32_active;
+    unsigned char rdchar,rdbus;
+    unsigned char error;
     unsigned char getting_filename;
     unsigned char filename_position;
     unsigned char address;
     unsigned int bytes_to_send;
     unsigned char i;
+    unsigned char doneSending;
     unsigned long currentDirectoryCluster;
     
     address = get_device_address();
@@ -208,28 +161,25 @@ int main(void)
     _cardType = 0;
 
     struct dir_Structure *dir;
-    unsigned long cluster, byteCounter = 0, fileSize, firstSector;
+    unsigned long byteCounter = 0, firstSector;
     unsigned int k;
-    unsigned char j,sending;
-    unsigned char response;
-    unsigned char startline;
-    unsigned int retry;
-    unsigned int dir_start;
-    unsigned int dirlength;
+    unsigned char j;
     unsigned char gotname;
     unsigned char savefile;
     unsigned char filenotfound;
     unsigned char initcard;
     unsigned char buscmd;
-    //unsigned long startBlock;
-    unsigned long cl;
+    
     getting_filename = 0;
     filename_position = 0;
     // clear string
+    /*
     for (i = 0; i < FNAMELEN; i++)
     {
         progname[i] = 0x00;
     }
+    */
+    memset(progname, 0, FNAMELEN);
     
     // initialize SD card
     for (i=0; i<10; i++)
@@ -243,13 +193,8 @@ int main(void)
         error = getBootSectorData(); //read boot sector and keep necessary data in global variables
         currentDirectoryCluster = _rootCluster;
     
-		// look for firmware file
-        progname[0] = 'F';
-        progname[1] = 'I';
-        progname[2] = 'R';
-        progname[3] = 'M';
-        progname[4] = '*';
-        progname[5] = 0;
+        // copy firmware filename
+        pgm_memcpy(progname, _firmwareFileName, 5);
         dir = findFile(progname, _rootCluster);
         
         if (dir != 0)
@@ -339,16 +284,6 @@ int main(void)
                         filename_position -= 2;
                     }
                 
-                
-                    // add extension
-                    /*
-                    progname[filename_position++] = '.';
-                    progname[filename_position++] = 'P';
-                    progname[filename_position++] = 'R';
-                    progname[filename_position++] = 'G';
-                    progname[filename_position] = 0;
-                    */
-                    
                     // copy the PRG file extension onto the end of the file name
                     pgm_memcpy(&progname[filename_position], _fileExtension, 5);
                 
@@ -414,7 +349,8 @@ int main(void)
                 }
                 
                 // clear string
-                for (i = 0; i < FNAMELEN; i++) progname[i] = 0x00;
+                //for (i = 0; i < FNAMELEN; i++) progname[i] = 0x00;
+                memset(progname, 0, FNAMELEN);
             }
             else 
             {
@@ -459,12 +395,8 @@ int main(void)
                 // get packet
                 if (progname[0] == '$')
                 {
-                    //transmitString("directory..");
-                    for (i = 0; i < 32; i++)
-                    {
-                        send_byte(_buffer[i],0);
-                    }
-                    
+                    sendIEEEBytes(_buffer, 32, 0);
+                     
                     // this is a change directory command
                     if (progname[1] == ':')
                     {
@@ -496,31 +428,16 @@ int main(void)
                 else
                 {
                     // send blocks of file
-                    sending = 1;
-                    byteCounter = 1;
-                    fileSize = _filePosition.fileSize;
-                    while(sending == 1)
+                    doneSending = 0;
+                    while(doneSending == 0)
                     {
-                        if (_filePosition.byteCounter < _filePosition.fileSize)
+                        bytes_to_send = getNextFileBlock();
+                        if (_filePosition.byteCounter >= _filePosition.fileSize)
                         {
-                            bytes_to_send = getNextFileBlock();
-                            for (k = 0; k < bytes_to_send; k++)
-                            {
-                                if (byteCounter >= fileSize)
-                                {
-                                    send_byte(_buffer[k], 1);
-                                }
-                                else
-                                {
-                                    send_byte(_buffer[k], 0);
-                                    byteCounter++;
-                                }
-                            }
+                            doneSending = 1;
                         }
-                        else
-                        {
-                            sending = 0;
-                        }
+                        
+                        sendIEEEBytes(_buffer, bytes_to_send, doneSending);
                     }
                 }
             

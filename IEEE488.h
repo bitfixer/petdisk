@@ -19,7 +19,10 @@
     Contact the author at bitfixer@bitfixer.com
     http://bitfixer.com
 */
- 
+
+#ifndef _IEEE488_H
+#define _IEEE488_H
+
 #define IEEE_PORT PORTC
 #define IEEE_CTL  DDRC
 #define ATN 0x01
@@ -44,3 +47,7 @@
 
 #define TALK    0x40
 #define LISTEN  0x20
+
+void sendIEEEBytes(unsigned char *entry, int size, unsigned char isLast);
+
+#endif
