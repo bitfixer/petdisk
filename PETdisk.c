@@ -63,6 +63,15 @@ const unsigned char _dirHeader[] PROGMEM =
 
 const unsigned char _versionString[] PROGMEM = "\"PETDISK V2.0    \"      ";
 
+const unsigned char _fileExtension[] PROGMEM =
+{
+    '.',
+    'P',
+    'R',
+    'G',
+    0x00,
+};
+
 void pgm_memcpy(unsigned char *dest, unsigned char *src, int len)
 {
     int i;
@@ -192,9 +201,9 @@ int main(void)
     address = get_device_address();
     
     init_devices();
-    transmitString("Device ID: ");
-    transmitHex(CHAR, address);
-    TX_NEWLINE;
+    //transmitString("Device ID: ");
+    //transmitHex(CHAR, address);
+    //TX_NEWLINE;
     
     _cardType = 0;
 
@@ -246,7 +255,7 @@ int main(void)
         if (dir != 0)
         {
             // found firmware file
-            transmitString("found firmware..");
+            //transmitString("found firmware..");
             deleteFile();
         } 
         else 
@@ -332,11 +341,16 @@ int main(void)
                 
                 
                     // add extension
+                    /*
                     progname[filename_position++] = '.';
                     progname[filename_position++] = 'P';
                     progname[filename_position++] = 'R';
                     progname[filename_position++] = 'G';
                     progname[filename_position] = 0;
+                    */
+                    
+                    // copy the PRG file extension onto the end of the file name
+                    pgm_memcpy(&progname[filename_position], _fileExtension, 5);
                 
                     getting_filename = 0;
                     filename_position = 0;
@@ -351,20 +365,10 @@ int main(void)
             // check for directory command
             if (progname[0] == '$')
             {
-                /*
-                _buffer[0] = 0x01;
-                _buffer[1] = 0x04;
-                _buffer[2] = 0x1F;
-                _buffer[3] = 0x04;
-                _buffer[4] = 0x00;
-                _buffer[5] = 0x00;
-                _buffer[6] = 0x12;
-                */
                 // copy the directory header
                 pgm_memcpy(_buffer, _dirHeader, 7);
                 
                 // print directory title
-                //sprintf(&_buffer[7], "\"PETDISK V2.0    \"      ");
                 pgm_memcpy(&_buffer[7], _versionString, 24);
                 _buffer[31] = 0x00;
             }
@@ -405,7 +409,7 @@ int main(void)
                 if (!openFileForReading(progname, currentDirectoryCluster))
                 {
                     // file not found
-                    transmitString("file not found");
+                    //transmitString("file not found");
                     filenotfound = 1;
                 }
                 
@@ -455,7 +459,7 @@ int main(void)
                 // get packet
                 if (progname[0] == '$')
                 {
-                    transmitString("directory..");
+                    //transmitString("directory..");
                     for (i = 0; i < 32; i++)
                     {
                         send_byte(_buffer[i],0);
