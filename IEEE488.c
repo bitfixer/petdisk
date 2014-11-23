@@ -27,7 +27,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
-#include <avr/signal.h>
 #include <inttypes.h>
 #include <util/delay.h>
 #include <string.h>

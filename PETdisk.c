@@ -85,7 +85,7 @@ void pgm_memcpy(unsigned char *dest, unsigned char *src, int len)
 
 void port_init(void)
 {
-    SPI_CTL = ~MISO & ~DATA0 & ~DATA1 & ~CASSETTE_READ & ~CASSETTE_WRITE;
+    SPI_CTL = (unsigned char)(~MISO & ~DATA0 & ~DATA1 & ~CASSETTE_READ & ~CASSETTE_WRITE);
     SPI_PORT = 0xff;
 
     // all IEEE lines input
@@ -360,7 +360,7 @@ int main(void)
         
         gotname = 0;
         
-        if ((rdchar == 0x3f) || rdchar == 0x5f && (rdbus & ATN) == 0x00)
+        if ((rdchar == 0x3f) || (rdchar == 0x5f && (rdbus & ATN) == 0x00))
         {
             // unlisten or untalk command
             PORTC = NOT_NDAC;
@@ -448,7 +448,7 @@ int main(void)
                 DDRC = NRFD | NDAC;
                 
                 DATA_CTL = 0x00;
-                DDRB = ~MISO & ~DATA0 & ~DATA1 & ~CASSETTE_READ & ~CASSETTE_WRITE;
+                DDRB = (unsigned char)(~MISO & ~DATA0 & ~DATA1 & ~CASSETTE_READ & ~CASSETTE_WRITE);
                 PORTC = NOT_NDAC;
             }
             
