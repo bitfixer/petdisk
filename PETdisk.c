@@ -26,6 +26,7 @@
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 #include <avr/interrupt.h>
+#include <string.h>
 #include <util/delay.h>
 #include "PETdisk.h"
 #include "bf-avr-sdlib/SPI_routines.h"
@@ -161,9 +162,10 @@ int main(void)
     _cardType = 0;
 
     struct dir_Structure *dir;
-    unsigned long byteCounter = 0, firstSector;
-    unsigned int k;
-    unsigned char j;
+    //unsigned long byteCounter = 0, firstSector;
+    //unsigned long firstSector;
+    //unsigned int k;
+    //unsigned char j;
     unsigned char gotname;
     unsigned char savefile;
     unsigned char filenotfound;
@@ -172,6 +174,10 @@ int main(void)
     
     getting_filename = 0;
     filename_position = 0;
+    initcard = 0;
+    filenotfound = 0;
+    currentDirectoryCluster = 0;
+    
     // clear string
     memset(progname, 0, FNAMELEN);
     
@@ -188,7 +194,7 @@ int main(void)
         currentDirectoryCluster = _rootCluster;
     
         // copy firmware filename
-        pgm_memcpy(progname, _firmwareFileName, 5);
+        pgm_memcpy((unsigned char *)progname, (unsigned char *)_firmwareFileName, 5);
         dir = findFile(progname, _rootCluster);
         
         if (dir != 0)
@@ -199,7 +205,7 @@ int main(void)
         } 
         else 
         {
-            transmitString("no firmware.");
+            transmitString((unsigned char *)"no firmware.");
         }
     }
      
@@ -279,7 +285,7 @@ int main(void)
                     }
                 
                     // copy the PRG file extension onto the end of the file name
-                    pgm_memcpy(&progname[filename_position], _fileExtension, 5);
+                    pgm_memcpy(&progname[filename_position], (unsigned char *)_fileExtension, 5);
                 
                     getting_filename = 0;
                     filename_position = 0;
@@ -295,10 +301,10 @@ int main(void)
             if (progname[0] == '$')
             {
                 // copy the directory header
-                pgm_memcpy(_buffer, _dirHeader, 7);
+                pgm_memcpy((unsigned char *)_buffer, (unsigned char *)_dirHeader, 7);
                 
                 // print directory title
-                pgm_memcpy(&_buffer[7], _versionString, 24);
+                pgm_memcpy((unsigned char *)&_buffer[7], (unsigned char *)_versionString, 24);
                 _buffer[31] = 0x00;
             }
         }
@@ -388,8 +394,8 @@ int main(void)
                 // get packet
                 if (progname[0] == '$')
                 {
-                    transmitString("directory..");
-                    sendIEEEBytes(_buffer, 32, 0);
+                    transmitString((unsigned char *)"directory..");
+                    sendIEEEBytes((unsigned char *)_buffer, 32, 0);
                      
                     // this is a change directory command
                     if (progname[1] == ':')
@@ -431,7 +437,7 @@ int main(void)
                             doneSending = 1;
                         }
                         
-                        sendIEEEBytes(_buffer, bytes_to_send, doneSending);
+                        sendIEEEBytes((unsigned char *)_buffer, bytes_to_send, doneSending);
                     }
                 }
             

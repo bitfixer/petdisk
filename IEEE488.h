@@ -49,5 +49,16 @@
 #define LISTEN  0x20
 
 void sendIEEEBytes(unsigned char *entry, int size, unsigned char isLast);
+unsigned char wait_for_device_address(unsigned char my_address);
+void wait_for_dav_high();
+void wait_for_dav_low();
+void wait_for_atn_high();
+void wait_for_atn_low();
+void wait_for_nrfd_high();
+void wait_for_ndac_high();
+void unlisten();
+void recv_byte_IEEE(unsigned char *byte);
+void ListFilesIEEE(unsigned long firstCluster);
+void writeFileFromIEEE ();
 
 #endif

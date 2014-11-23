@@ -31,6 +31,7 @@
 #include <inttypes.h>
 #include <util/delay.h>
 #include <string.h>
+#include <stdio.h>
 #include "bf-avr-sdlib/UART_routines.h"
 #include "bf-avr-sdlib/FAT32.h"
 #include "bf-avr-sdlib/sd_routines.h"
@@ -177,12 +178,12 @@ void unlisten()
 
 unsigned char wait_for_device_address(unsigned char my_address)
 {
-    unsigned char primary_address,dir;
+    unsigned char primary_address, dir;
     primary_address = 0;
+    dir = 0;
     //transmitString("waiting..");
     while (primary_address != my_address)
     {
-        
         // wait for atn signal
         wait_for_atn_low();
         
@@ -245,7 +246,7 @@ void sendIEEEBytes(unsigned char *entry, int size, unsigned char isLast)
     }
 }
 
-struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
+void ListFilesIEEE(unsigned long firstCluster)
 {
     struct dir_Structure *dir;
     unsigned char startline;
@@ -255,7 +256,7 @@ struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
     unsigned int f;
     unsigned int file;
     unsigned char hasLongEntry;
-    unsigned char extPos;
+    //unsigned char extPos;
     unsigned long prevDirCluster;
     unsigned long currentCluster;
     unsigned char *ustr;
@@ -297,8 +298,8 @@ struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
                 {
                     if (_filePosition.fileName[0] != 0)
                     {
-                        ustr = strupr((unsigned char *)_filePosition.fileName);
-                        memcpy(&entry[6], ustr, strlen(ustr));
+                        ustr = (unsigned char *)strupr((char *)_filePosition.fileName);
+                        memcpy(&entry[6], ustr, strlen((char *)ustr));
                     }
                     else
                     {
@@ -344,13 +345,13 @@ struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
             entry[startline+1] = (unsigned char)((dir_start & 0xff00) >> 8);
             entry[startline+2] = 0xff;
             entry[startline+3] = 0xff;
-            sprintf(&entry[startline+4], "BLOCKS FREE.             ");
+            sprintf((char *)&entry[startline+4], (char *)"BLOCKS FREE.             ");
             entry[startline+29] = 0x00;
             entry[startline+30] = 0x00;
             entry[startline+31] = 0x00;
             
             sendIEEEBytes(entry, 32, 1);
-            return 0;
+            return;
         }
         else
         {
@@ -380,7 +381,7 @@ struct dir_Structure* ListFilesIEEE(unsigned long firstCluster)
                 
                 if (hasLongEntry)
                 {
-                    fname_length = strlen(_filePosition.fileName);
+                    fname_length = strlen((char *)_filePosition.fileName);
                     
                     if (fname_length > 5)
                     {
@@ -471,7 +472,7 @@ void writeFileFromIEEE ()
         
         if(numBytes >= 512)   //though 'i' will never become greater than 512, it's kept here to avoid
         {				//infinite loop in case it happens to be greater than 512 due to some data corruption
-            transmitString("writing block..\r\n");
+            transmitString((unsigned char *)"writing block..\r\n");
             writeBufferToFile(numBytes);
             numBytes = 0;
         }
@@ -485,7 +486,7 @@ void writeFileFromIEEE ()
     
     if (numBytes > 0)
     {
-        transmitString("writing last block\r\n");
+        transmitString((unsigned char *)"writing last block\r\n");
         writeBufferToFile(numBytes);
     }
     
